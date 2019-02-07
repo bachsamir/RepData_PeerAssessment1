@@ -1,0 +1,139 @@
+---
+title: "Fitbit_measures"
+author: "Bachir"
+date: "7 February 2019"
+output: html_document
+---
+
+# *Reproductive Research - Course Project 1*
+
+## Activity monitoring
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### *Loading and preprocessing the data*
+```{r}
+fileUrl <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+download.file(fileUrl,destfile="./Factivity.zip",method="auto")  
+unzip(zipfile = "Factivity.zip")
+unlink("Factivity.zip")
+```
+
+### *Load and read the data*
+```{r}
+library(readr)
+data1 <- read_csv("activity.csv")
+head(data1)
+```
+
+### *Process the data*
+```{r}
+library(plyr)
+```
+
+# 1. Mean total number of steps taken per day
+
+## Total number of steps taken per day
+```{r}
+totalstepsperday <- with(data1, aggregate(steps, list(date), sum, na.rm = TRUE))
+names(totalstepsperday) <- c("date", "steps")
+```
+
+## Histogram of the total number of steps taken each day
+```{r}
+with(totalstepsperday, hist(steps, col = "pink",
+                          xlab = "Steps per day", main = "Total number of steps taken each day"))
+```
+
+### Mean and median of the total number of steps taken per day
+```{r}
+moy1 <- mean(totalstepsperday$steps, na.rm = TRUE)
+med1 <- median(totalstepsperday$steps, na.rm = TRUE)
+```
+The average steps taken per day is `r moy1` and the median is `r med1`.
+
+# 2. Average daily activity pattern
+```{r}
+totatstepsperint <- with(data1, aggregate(steps, list(interval), mean, na.rm = TRUE))
+names(totatstepsperint) <- c("interval", "steps")
+```
+
+## Plot of the 5-minute interval and the average number of steps taken
+```{r}
+with(totatstepsperint, plot(interval, steps, type = "l", lwd = 2,
+                            xlab = "5-minute interval", ylab = "Average number of steps",
+                            main = "Average number of steps taken across all days"))
+```
+
+## The 5-minute interval that contains the maximum number of steps?
+```{r}
+maxstep <- with(totatstepsperint, interval[which.max(steps)])
+```
+The maximum number of steps for 5-minute interval is `r maxstep`.
+
+# 3. Imputing missing values
+
+## Total number of missing values in the dataset
+```{r}
+miss <- with(data1, sum(is.na(steps)))
+```
+The total number of missing values in the dataset is `r miss`.
+
+## Fill the missing values with the mean for each 5-minutes interval
+```{r}
+data2 <- data1
+NA.position <- which(is.na(data2$steps))
+
+for (i in 1:length(NA.position)) {
+  data2[NA.position[i],1] <- with(data2, aggregate(steps,
+                                                   list(interval == data2[NA.position[i],3][[1]]),
+                                                   mean, na.rm = TRUE))[2,2]
+                                 }
+
+sum(is.na(data2$steps)) # check
+```
+
+### *Total number of steps taken per day*
+```{r}
+totalstepsperday2 <- with(data2, aggregate(steps, list(date), sum))
+names(totalstepsperday2) <- c("date", "steps")
+```
+
+## Histogram of the total number of steps taken each day
+```{r}
+with(totalstepsperday2, hist(steps, col = "pink",
+                            xlab = "Steps per day", main = "Total number of steps taken each day"))
+```
+
+### Mean and median of the total number of steps taken per day
+```{r}
+moy2 <- mean(totalstepsperday2$steps)
+med2 <- median(totalstepsperday2$steps)
+```
+After filling the missing data, the average steps taken per day becomes `r moy2` and the median is `r med2`.
+
+# 4. Differences in activity patterns between weekdays and weekends
+
+### *Creation of a factor variable for "weekday" and "weekend"*
+```{r}
+data3 <- data2
+data3$date <- as.Date(data3$date, format="%Y-%m-%d")
+data3 <- mutate(data3, week = ifelse(weekdays(data3$date) == "Saturday" |
+                                               weekdays(data3$date) == "Sunday", "weekend", "weekday"))
+data3$week <- as.factor(data3$week)
+```
+
+### *Average weekly activity pattern*
+```{r}
+totatstepsperint2 <- with(data3, aggregate(steps, list(interval, week), mean))
+names(totatstepsperint2) <- c("interval", "week", "steps")
+```
+
+## Panel plot of the 5-minute interval and the average number of steps taken
+```{r}
+library(ggplot2)
+g <- ggplot(totatstepsperint2, aes(interval, steps))
+g + geom_line() + facet_grid(week ~ .)
+```
